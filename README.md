@@ -1,5 +1,7 @@
 # 司农智机 · SRT27
 
+> 当前源码版本：**v1.0**
+
 面向农业机械装备的智能故障诊断 Agent。基于本地 Markdown 知识库 + 大语言模型，为拖拉机、联合收割机等农机提供结构化的故障原因分析、排查步骤与安全维修建议。
 
 > 当前版本为**本地知识库 + LLM 对话**的轻量方案，未接入传感器/麦克风/视觉/CAN 总线。多模态感知、结构仿真、数字孪生等能力均为规划方向。
@@ -275,7 +277,7 @@ SRT27/
 
 ## 同步部署
 
-- GitHub：https://github.com/Changjie29/-gpt-
+- GitHub：https://github.com/Changjie29/SRT27
 - 本地工作区：clone 仓库后在根目录执行 `npm install` 即可开发，无需额外配置路径
 - 同步方式：本地改完后 commit 并 push 到 `main`，云环境通过 git pull 自动同步
 
