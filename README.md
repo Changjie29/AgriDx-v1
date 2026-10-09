@@ -2,7 +2,7 @@
 
 # 司农智机 · SRT27
 
-> 当前源码版本：**v1.0**
+> 本仓库维护 **v1 系列**。当前源码版本以 [package.json](package.json) 为准；版本变化见 [CHANGELOG.md](CHANGELOG.md)，旧版本对照见 [历史记录](docs/version-history.md)，正式发布见 [GitHub Releases](https://github.com/Changjie29/AgriDx-v1/releases)。
 
 面向农业机械装备的智能故障诊断 Agent。基于本地 Markdown 知识库 + 大语言模型，为拖拉机、联合收割机等农机提供结构化的故障原因分析、排查步骤与安全维修建议。
 
@@ -66,6 +66,7 @@ npm run dev
 ```bash
 npm run typecheck   # 前端 tsc
 npm run lint        # eslint
+npm test            # 检索、回答和本机接口测试
 npm run build       # 先 build:client 再 build:server
 ```
 
@@ -203,8 +204,8 @@ SRT27/
 
 ## Git 分支
 
-- **`main`**：稳定版本，日常开发与部署都基于此分支。所有同步脚本（rsync + git push）都推到 `main`。
-- 目前仓库只有 `main` 一个分支。后续如需要独立开发新功能，可从 `main` 切 `feature/<功能名>` 分支，合并后删除，不长期保留展示性分支。
+- **`main`**：稳定主分支，开发改动通过 PR 合入；合并前须通过 CI。部署时记录对应的版本标签或完整 commit SHA。
+- 开发从最新 `main` 创建短期工作分支，例如 `codex/<任务名>`；提交 PR，使用 `Squash and merge` 合并。PR 标题采用 `feat(scope): ...`、`fix(scope): ...`、`ci(scope): ...` 等格式，最终合并标题与 PR 标题一致。
 
 ## API
 
@@ -279,9 +280,9 @@ SRT27/
 
 ## 同步部署
 
-- GitHub：https://github.com/Changjie29/SRT27
+- GitHub：https://github.com/Changjie29/AgriDx-v1
 - 本地工作区：clone 仓库后在根目录执行 `npm install` 即可开发，无需额外配置路径
-- 同步方式：本地改完后 commit 并 push 到 `main`，云环境通过 git pull 自动同步
+- 同步方式：本地改动提交并推送工作分支，创建 PR，通过 CI 后合并到 `main`；云环境拉取经验证的代码，记录部署的版本或 commit SHA。
 
 ---
 
