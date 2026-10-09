@@ -171,7 +171,7 @@ export default function ChatPage() {
 
         if (requestRef.current !== controller) return;
         if (modelName) setCurrentModel(modelName);
-        if (provider) setCurrentProvider(provider);
+        setCurrentProvider(provider);
 
         setMessages((prev) =>
           prev.map((m) =>
