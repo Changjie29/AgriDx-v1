@@ -4,6 +4,13 @@
 
 旧标签及版本命名见 [历史版本对照](docs/version-history.md)。本文件不将旧标签名称重新解释成三段版本。
 
+## [1.6.1](https://github.com/Changjie29/AgriDx-v1/compare/v1.6.0...v1.6.1) (2026-10-09)
+
+
+### 自动化流程
+
+* **release:** 接入自动版本号和更新日志 ([469374c](https://github.com/Changjie29/AgriDx-v1/commit/469374ca6a7642a341eb2834a96b7ec25d7ae1c3))
+
 ## 1.6.0 (2026-10-09)
 
 ### 版本管理
