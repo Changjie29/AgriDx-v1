@@ -22,6 +22,14 @@ test('chat接口模型失败返回本地资料，非法输入拒绝', async () =
     assert.equal(data.provider, null);
     assert.ok(data.sources.length);
     assert.match(data.choices[0].message.content, /尚未形成诊断结论/);
+    router.chat = async () => ({ primary: 'deepseek', fellBack: false, result: { provider: 'deepseek', model: 'mock', content: JSON.stringify({ summary: '症状待确认', evidence: [], hypotheses: ['通用可能原因，待核实'], questions: ['发生工况是什么？'], checks: [] }) } });
+    const generated = await (await send({ messages: [{ role: 'user', content: 'xyzqwerty' }] })).json() as { answerMode: string; evidenceMode: string; choices: { message: { content: string } }[] };
+    assert.equal(generated.answerMode, 'model');
+    assert.equal(generated.evidenceMode, 'general_only');
+    assert.match(generated.choices[0].message.content, /模型补充分析/);
+    router.chat = async () => ({ primary: 'deepseek', fellBack: false, result: { provider: 'deepseek', model: 'mock', content: '不合格的未分层输出' } });
+    const invalid = await (await send({ messages: [{ role: 'user', content: '散热器' }] })).json() as { answerMode: string };
+    assert.equal(invalid.answerMode, 'local');
     assert.equal((await send({ messages: [{ role: 'user', content: '问题' }], model: {} })).status, 400);
     assert.equal((await send({ messages: [{ role: 'assistant', content: '只有助手' }] })).status, 400);
   } finally {

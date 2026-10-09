@@ -36,6 +36,7 @@ if (proxyUrl) {
 // ---- 知识库 & LLM ----
 import { loadKnowledgeBase, stats as kbStats } from './knowledge/retriever';
 import { buildRetrievalContext } from './knowledge/context';
+import { renderDiagnosis } from './knowledge/answer';
 import { localFallback } from './knowledge/fallback';
 import { buildSystemPrompt } from './knowledge/systemPrompt';
 import { getLlmRouter } from './llm/router';
@@ -150,33 +151,36 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     return;
   }
   const context = buildRetrievalContext(history, { machineType, brand, model });
-  const { message: systemMsg, retrieved } = buildSystemPrompt(context);
+  const { message: systemMsg, retrieved, mode } = buildSystemPrompt(context);
   const sources = retrieved.map((c, i) => ({ id: i + 1, source: c.source, heading: c.heading, ...c.metadata }));
 
   const fullMessages: ChatMessage[] = [systemMsg, ...history];
 
+  let modelResponded = false;
   try {
     const outcome = await llm.chat(fullMessages);
+    modelResponded = true;
     // 返回 OpenAI 兼容结构 + 附加 provider/model/knowledge 元信息
     res.json({
-      choices: [{ message: { role: 'assistant', content: outcome.result.content } }],
+      choices: [{ message: { role: 'assistant', content: renderDiagnosis(outcome.result.content, retrieved, mode) } }],
       model: outcome.result.model,
       provider: outcome.result.provider,
       fellBack: outcome.fellBack,
       knowledgeChunks: retrieved.length,
       sources,
       answerMode: 'model',
+      evidenceMode: mode,
     });
   } catch (err) {
     if (err instanceof ProviderError) {
       console.warn(`[chat] provider error: ${err.provider}/${err.kind}`, err.detail);
     } else {
-      console.error('[chat] unexpected error:', err);
+      console.error('[chat] unexpected error:', err instanceof Error ? err.name : 'unknown');
     }
     res.json({
-      choices: [{ message: { role: 'assistant', content: localFallback(retrieved) } }],
+      choices: [{ message: { role: 'assistant', content: localFallback(retrieved, modelResponded ? 'invalid_output' : 'unavailable') } }],
       provider: null, model: '本地资料检索（未生成诊断）', fellBack: true,
-      answerMode: 'local', knowledgeChunks: retrieved.length, sources,
+      answerMode: 'local', evidenceMode: mode, knowledgeChunks: retrieved.length, sources,
     });
   }
 });
