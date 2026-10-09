@@ -12,7 +12,8 @@
     "build:server": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "typecheck": "tsc -b tsconfig.app.json --noEmit",
-    "lint": "eslint . --cache --cache-location node_modules/.eslintcache --report-unused-disable-directives"
+    "lint": "eslint . --cache --cache-location node_modules/.eslintcache --report-unused-disable-directives",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.14",

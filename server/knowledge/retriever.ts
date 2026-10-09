@@ -11,7 +11,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+export interface MachineScope { machineType?: string; brand?: string; model?: string; conflict?: boolean }
+export interface KnowledgeMetadata { machineType: string; brand?: string; models?: string[]; enabled: boolean; sourceUrl?: string }
+
 export interface KnowledgeChunk {
+  metadata?: KnowledgeMetadata;
   /** 文件相对 server/knowledge 的路径 */
   source: string;
   /** 该块所属章节标题（## 级） */
@@ -86,7 +90,17 @@ export function loadKnowledgeBase(): { fileCount: number; chunkCount: number } {
       if (rel.replace(/\\/g, '/').startsWith('00_说明/')) continue;
       const abs = path.join(KB_ROOT, rel);
       const content = fs.readFileSync(abs, 'utf-8');
-      chunks.push(...splitByHeading(rel, content));
+      const match = content.match(/<!-- agridx-meta: (.+) -->/);
+      // 未标明适用范围的资料保留在磁盘，审核并添加元信息后才参与回答。
+      if (!match) continue;
+      let metadata: KnowledgeMetadata;
+      try { metadata = JSON.parse(match[1]) as KnowledgeMetadata; }
+      catch { console.warn(`[kb] invalid metadata: ${rel}`); continue; }
+      if (!metadata || (metadata.brand !== undefined && typeof metadata.brand !== 'string') ||
+          (metadata.models !== undefined && (!Array.isArray(metadata.models) || !metadata.models.every(m => typeof m === 'string'))) ||
+          (metadata.sourceUrl !== undefined && typeof metadata.sourceUrl !== 'string')) continue;
+      if (metadata.enabled !== true || typeof metadata.machineType !== 'string') continue;
+      chunks.push(...splitByHeading(rel, content.replace(match[0], '')).filter(c => c.heading !== '(概述)').map(c => ({ ...c, metadata })));
       fileCount++;
     }
   } catch (e) {
@@ -127,18 +141,27 @@ function scoreChunk(chunk: KnowledgeChunk, queryTokens: Set<string>): number {
  * 根据用户问题检索最相关的知识片段。
  * 无命中时返回空数组，调用方决定 fallback。
  */
-export function retrieve(query: string, k = MAX_CHUNKS_IN_PROMPT): KnowledgeChunk[] {
+export function retrieve(query: string, k = MAX_CHUNKS_IN_PROMPT, scope: MachineScope = {}): KnowledgeChunk[] {
   if (chunks.length === 0) return [];
   const qTokens = new Set(tokenize(query));
   if (qTokens.size === 0) return [];
 
   const scored: ScoredChunk[] = [];
   for (const c of chunks) {
+    const meta = c.metadata;
+    if (!meta) continue;
+    const norm = (v: string) => v.toLowerCase().replace(/[\s-]/g, '');
+    if (scope.machineType && norm(scope.machineType) !== norm(meta.machineType)) continue;
+    if (meta.brand || meta.models?.length) {
+      if (scope.conflict) continue;
+      if (meta.brand && (!scope.brand || norm(meta.brand) !== norm(scope.brand))) continue;
+      if (meta.models?.length && (!scope.model || !meta.models.some(m => norm(m) === norm(scope.model!)))) continue;
+    }
     const s = scoreChunk(c, qTokens);
     if (s > 0) scored.push({ ...c, score: s });
   }
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, k).map(({ source, heading, text }) => ({ source, heading, text }));
+  return scored.slice(0, k).map(({ source, heading, text, metadata }) => ({ source, heading, text, metadata }));
 }
 
 /** 当前知识条目数（供 /api/health 或前端展示） */
@@ -152,7 +175,7 @@ export function formatForPrompt(found: KnowledgeChunk[]): string {
   return found
     .map((c, i) => {
       const body = c.text.length > MAX_CHARS_PER_CHUNK ? c.text.slice(0, MAX_CHARS_PER_CHUNK) + '…' : c.text;
-      return `【片段 ${i + 1}｜来源：${c.source}｜章节：${c.heading}】\n${body}`;
+      return `【片段 ${i + 1}｜来源：${c.source}｜章节：${c.heading}｜适用：${c.metadata?.brand || "通用"} ${c.metadata?.models?.join("、") || c.metadata?.machineType || "未指定"}｜原文：${c.metadata?.sourceUrl || "未记录"}】\n${body}`;
     })
     .join('\n\n---\n\n');
 }

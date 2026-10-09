@@ -35,6 +35,9 @@ if (proxyUrl) {
 
 // ---- 知识库 & LLM ----
 import { loadKnowledgeBase, stats as kbStats } from './knowledge/retriever';
+import { buildRetrievalContext } from './knowledge/context';
+import { renderDiagnosis } from './knowledge/answer';
+import { localFallback } from './knowledge/fallback';
 import { buildSystemPrompt } from './knowledge/systemPrompt';
 import { getLlmRouter } from './llm/router';
 import { ProviderError, type ChatMessage } from './llm/types';
@@ -108,14 +111,13 @@ interface ChatRequestBody {
   model?: string;
 }
 
-const USER_FRIENDLY_ERROR =
-  process.env.NODE_ENV === 'production'
-    ? '智能诊断服务暂时无法连接，请稍后重试。'
-    : '智能诊断服务暂时无法连接，请稍后重试。';
-
 app.post('/api/chat', async (req: Request, res: Response) => {
   const body = req.body as ChatRequestBody;
-  const { messages, machineType, brand, model } = body;
+  const { messages, machineType, brand, model } = body || {};
+  if ([machineType, brand, model].some(v => v !== undefined && (typeof v !== 'string' || v.length > 100))) {
+    res.status(400).json({ error: '机型信息格式错误', code: 'bad_request' });
+    return;
+  }
 
   // 输入校验
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -144,37 +146,42 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     .slice(-20) // 最多保留 20 轮，避免无限增长
     .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
-  // 取最近一条 user 问题用于 RAG 检索
-  const lastUserMsg = [...history].reverse().find((m) => m.role === 'user');
-  const query = lastUserMsg?.content || '';
-
-  // 构造 system prompt（含 RAG）
-  const { message: systemMsg, retrieved } = buildSystemPrompt({
-    query,
-    machineType,
-    brand,
-    model,
-  });
+  if (!history.some(m => m.role === 'user')) {
+    res.status(400).json({ error: '请提供用户问题', code: 'bad_request' });
+    return;
+  }
+  const context = buildRetrievalContext(history, { machineType, brand, model });
+  const { message: systemMsg, retrieved, mode } = buildSystemPrompt(context);
+  const sources = retrieved.map((c, i) => ({ id: i + 1, source: c.source, heading: c.heading, ...c.metadata }));
 
   const fullMessages: ChatMessage[] = [systemMsg, ...history];
 
+  let modelResponded = false;
   try {
     const outcome = await llm.chat(fullMessages);
+    modelResponded = true;
     // 返回 OpenAI 兼容结构 + 附加 provider/model/knowledge 元信息
     res.json({
-      choices: [{ message: { role: 'assistant', content: outcome.result.content } }],
+      choices: [{ message: { role: 'assistant', content: renderDiagnosis(outcome.result.content, retrieved, mode) } }],
       model: outcome.result.model,
       provider: outcome.result.provider,
       fellBack: outcome.fellBack,
       knowledgeChunks: retrieved.length,
+      sources,
+      answerMode: 'model',
+      evidenceMode: mode,
     });
   } catch (err) {
     if (err instanceof ProviderError) {
       console.warn(`[chat] provider error: ${err.provider}/${err.kind}`, err.detail);
     } else {
-      console.error('[chat] unexpected error:', err);
+      console.error('[chat] unexpected error:', err instanceof Error ? err.name : 'unknown');
     }
-    res.status(502).json({ error: USER_FRIENDLY_ERROR, code: 'llm_unavailable' });
+    res.json({
+      choices: [{ message: { role: 'assistant', content: localFallback(retrieved, modelResponded ? 'invalid_output' : 'unavailable') } }],
+      provider: null, model: '本地资料检索（未生成诊断）', fellBack: true,
+      answerMode: 'local', evidenceMode: mode, knowledgeChunks: retrieved.length, sources,
+    });
   }
 });
 
