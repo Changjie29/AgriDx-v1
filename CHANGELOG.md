@@ -8,6 +8,18 @@
 
 不要手工新增正式版本段落。release-please 根据 manifest 记录的上一版本生成新日志，手工插入可能造成重复版本。
 
+## [1.6.2](https://github.com/Changjie29/AgriDx-v1/compare/v1.6.1...v1.6.2) (2026-10-10)
+
+
+### 问题修复
+
+* 修复裸密钥未脱敏与 Windows 构建收尾失败，完善版本号自动化与日志 ([#6](https://github.com/Changjie29/AgriDx-v1/issues/6)) ([a53e4c9](https://github.com/Changjie29/AgriDx-v1/commit/a53e4c9ade243e4c3975eeeb127e57ab64883b35))
+
+
+### 代码重构
+
+* **maintenance:** 整理目录、发布校验和跨平台维护流程 ([#8](https://github.com/Changjie29/AgriDx-v1/issues/8)) ([270d05d](https://github.com/Changjie29/AgriDx-v1/commit/270d05dd4664eb454ca96ae9bada04a866dcaadf))
+
 ## [1.6.1](https://github.com/Changjie29/AgriDx-v1/compare/v1.6.0...v1.6.1) (2026-10-09)
 
 ### 自动化流程
