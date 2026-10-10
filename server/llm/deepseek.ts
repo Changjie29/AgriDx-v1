@@ -1,8 +1,8 @@
 /**
  * DeepSeek provider（国内直连可用，无需代理）
  */
-import { createOpenAICompatibleProvider } from './openai-compatible';
-import type { Provider } from './types';
+import { createOpenAICompatibleProvider } from './openai-compatible.js';
+import type { Provider } from './types.js';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-v4-flash';

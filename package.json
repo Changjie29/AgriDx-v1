@@ -3,17 +3,24 @@
   "version": "1.6.1",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:client": "vite",
     "dev:server": "tsx watch server/dev.ts",
-    "build": "sh scripts/build.sh",
-    "build:client": "tsc -b tsconfig.app.json && vite build",
-    "build:server": "tsc -p tsconfig.server.json",
+    "build": "node scripts/build.mjs",
+    "build:client": "node scripts/build.mjs --client",
+    "build:server": "node scripts/build.mjs --server",
+    "start": "node dist-server/server/main.js",
     "preview": "vite preview",
     "typecheck": "tsc -b tsconfig.app.json --noEmit",
+    "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
     "lint": "eslint . --cache --cache-location node_modules/.eslintcache --report-unused-disable-directives",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:domain": "node scripts/run-tests.mjs",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.14",

@@ -17,12 +17,50 @@
 
 ```bash
 npm ci
-npm test
+npm run verify   # 版本一致性 + 类型检查 + 编译 + 测试 + Lint
 npm run dev
 ```
 
 浏览器打开 http://localhost:8080；健康检查 http://localhost:8787/api/health。
 没有配置密钥也能测试本地资料兜底。真实模型需要由项目维护者在 server/.env 配置可用的服务密钥，并核实 server/llm 中的模型名称确实受服务商支持。不要上传 .env 或密钥。
+
+### 生产构建与启动
+
+```bash
+npm run build      # 产出 dist/（前端站点）与 dist-server/（后端 ESM）
+npm start          # 等价于 node dist-server/main.js
+```
+
+必须在仓库根目录启动：知识库 `server/knowledge/` 与 `public/` 都按 `process.cwd()` 解析。
+原先的 `scripts/build.sh` 依赖 Unix shell，已改为跨平台的 `scripts/build.mjs`。
+
+### 发布（自动版本号与更新日志）
+
+1. 用 Conventional Commits 提交。
+2. 推到 `main` 后，Release Please 自动开出版本 PR（递增版本号 + CHANGELOG 条目 + 版本对照）。
+3. 合并该 PR 后同一工作流自动打 tag、创建 GitHub Release。
+
+版本推进规则：`feat:` 升次版本；带 `!` 或 `BREAKING CHANGE` 升主版本；**其余类型（含 `fix:`、`docs:`、`ci:`、`chore:`）一律兜底升修订号**——所以纯维护提交同样会开出版本 PR，版本号是否前进取决于你是否合并那个 PR。需要指定版本时在提交正文写一行 `Release-As: x.y.z`。详见[历史版本对照](docs/version-history.md#版本号怎么推进)。
+
+不要手工修改 `package.json` 的 version、`.release-please-manifest.json`、`CHANGELOG.md` 的已发布段落——
+这些由 release-please 维护；手工改动会被 `node scripts/check-version.mjs` 拦下，或造成重复发版。
+
+版本号只有 `package.json` 一个来源，后端启动时读取并通过 `GET /api/version` 暴露，前端页脚运行时请求该接口。
+因此**发布新版本后不需要重新构建前端**，页面上的版本号会立即跟随。
+
+### 日志
+
+设置环境变量即可启用：
+
+```bash
+LOG_LEVEL=debug          # debug | info | warn | error（测试环境默认 error）
+LOG_FORMAT=json          # 单行 JSON，便于采集
+LOG_FILE=logs/app.jsonl  # 追加写入并按 LOG_MAX_BYTES 轮转为 .1
+ENABLE_LOG_ENDPOINT=true # 开启 GET /api/logs（默认关闭，仅排查用）
+```
+
+日志会自动脱敏（`sk-` 前缀密钥、`Bearer` 凭据、`apiKey=...`、JSON 里的 `"token": "..."` 等形态替换为 `[redacted]`），
+每个请求带 `X-Request-Id`，可用 `req=<id>` 把用户反馈对应到具体请求。
 
 ## 新资料格式
 

@@ -1,4 +1,4 @@
-import type { KnowledgeChunk } from './retriever';
+import type { KnowledgeChunk } from './retriever.js';
 
 /** 无模型参与；只展示资料定位，避免把未审核维修原文当成诊断结论。 */
 export function localFallback(found: KnowledgeChunk[], reason: 'unavailable' | 'invalid_output' = 'unavailable'): string {

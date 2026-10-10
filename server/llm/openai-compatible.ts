@@ -2,14 +2,14 @@
  * OpenAI 兼容 chat/completions 通用请求实现。
  * Gemini (v1beta/openai) 与 DeepSeek 都遵循此格式，差别只在 URL/Model/Key。
  */
-import { fetchWithTimeout } from './http';
+import { fetchWithTimeout } from './http.js';
 import {
   ProviderError,
   type ChatMessage,
   type ChatResult,
   type Provider,
   type ProviderName,
-} from './types';
+} from './types.js';
 
 interface OpenAICompatibleOptions {
   name: ProviderName;

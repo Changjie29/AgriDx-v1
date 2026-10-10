@@ -1,5 +1,14 @@
 name: Release Please
 
+# 自动版本号 + 更新日志的流水线：
+#   1) 推到 main 后，release-please 开一个 "chore(main): release X.Y.Z" 的 PR
+#   2) 该 PR 由 release-please 自动递增 package.json / package-lock.json /
+#      .release-please-manifest.json，并生成 CHANGELOG.md 条目
+#   3) 合并该 PR 后，本流程在同一 main 推送事件里打 tag 并创建 GitHub Release
+#
+# 版本号的唯一来源是 package.json；后端在运行时读取（GET /api/version），
+# 因此发布后不需要重新构建前端，页面上的版本号也会立即跟随。
+
 on:
   push:
     branches: [main]
@@ -18,9 +27,31 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - name: 生成或更新发布 PR / 创建 Release
+        uses: googleapis/release-please-action@v4
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: 输出本次发布结果
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+          RELEASE_URL: ${{ steps.release.outputs.html_url }}
+        run: |
+          node --input-type=module <<'NODE'
+          const tag = process.env.RELEASE_TAG ?? '';
+          const version = process.env.RELEASE_VERSION ?? '';
+          const url = process.env.RELEASE_URL ?? '';
+          if (!tag || !version) {
+            console.error('release_created=true 但未取到 tag/version，请检查 release-please 输出');
+            process.exit(1);
+          }
+          console.log(`已发布 ${tag}（version=${version}）`);
+          console.log(`commit: ${process.env.RELEASE_SHA ?? 'unknown'}`);
+          console.log(`release: ${url}`);
+          NODE

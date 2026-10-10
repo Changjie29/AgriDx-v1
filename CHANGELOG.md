@@ -4,8 +4,11 @@
 
 旧标签及版本命名见 [历史版本对照](docs/version-history.md)。本文件不将旧标签名称重新解释成三段版本。
 
-## [1.6.1](https://github.com/Changjie29/AgriDx-v1/compare/v1.6.0...v1.6.1) (2026-10-09)
+书写约定：本文件由 release-please 依据 Conventional Commits 追加与维护，章节名与版本推进规则见[历史版本对照 · 版本号是怎么自动更新的](docs/version-history.md#版本号是怎么自动更新的)。请勿手工改写已发布版本的段落——进入本文件即视为已发布；`1.6.0` 是人工登记的基线。
 
+**注意：不要手工编辑本文件。** 下次发布时 release-please 会基于 `.release-please-manifest.json` 记录的上一个版本，在文件顶部插入新段落；手工插入的内容可能与自动生成结果冲突，导致同一个版本出现两段日志。
+
+## [1.6.1](https://github.com/Changjie29/AgriDx-v1/compare/v1.6.0...v1.6.1) (2026-10-09)
 
 ### 自动化流程
 
@@ -13,19 +16,21 @@
 
 ## 1.6.0 (2026-10-09)
 
-### 版本管理
+v1 系列的版本管理基线，人工登记，格式与自动生成段落一致。
 
-- 将 v1 维护线的规范版本基线设为 `1.6.0`，统一 `package.json` 与 `package-lock.json` 的版本号；新标签采用 `vX.Y.Z`。
-- 建立独立更新日志和包含完整 commit SHA 的历史版本对照，保留原有标签、提交及 README 历史更新说明。
-- 接入的 GitHub CI 和 PR 模板已合并到主分支，见 [PR #2](https://github.com/Changjie29/AgriDx-v1/pull/2)。
-- 将新增的现有测试纳入 CI，并补齐 PR 验证清单。
-- README 通过链接指向版本来源与日志，开发同步改为工作分支与 PR 流程。
+### 项目维护
 
-### 基线纳入的已有修复
+* 将 v1 维护线的规范版本基线设为 `1.6.0`，统一 `package.json` 与 `package-lock.json` 的版本号；新标签采用 `vX.Y.Z`。
+* 建立独立更新日志和包含完整 commit SHA 的历史版本对照，保留原有标签、提交及 README 历史更新说明。
+* README 改为通过链接指向版本来源与日志，开发同步改为工作分支与 PR 流程。
 
-- 纳入已合并的检索协同修复：资料适用范围、对话上下文、本地资料兜底、资料证据与模型推测区分，以及相关测试，见 [PR #1](https://github.com/Changjie29/AgriDx-v1/pull/1)。这些变化此前已进入主分支，本条将它们登记在新规范基线中。
+### 自动化流程
 
-### 发布安排
+* 接入 GitHub CI 和 PR 模板，见 [PR #2](https://github.com/Changjie29/AgriDx-v1/pull/2)。
+* 将新增的现有测试纳入 CI，并补齐 PR 验证清单。
 
-- 本次先建立版本基线；自动更新日志和自动创建 tag / Release 的工作流将另行接入。
-- 更早的对话体验优化记录继续保留在 [README](README.md)，不虚构旧版本的发布说明。
+### 问题修复
+
+* 纳入已合并的检索协同修复：资料适用范围、对话上下文、本地资料兜底、资料证据与模型推测区分，以及相关测试，见 [PR #1](https://github.com/Changjie29/AgriDx-v1/pull/1)。
+
+本次为人工登记的基线：`1.6.0` 之前的历史没有自动日志，更早的对话体验优化记录继续保留在 [README](README.md)，不为旧版本补写发布说明。自动更新日志和自动创建 tag / Release 的工作流在下一次变更（1.6.1）接入。

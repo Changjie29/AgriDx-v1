@@ -1,9 +1,9 @@
 import { Agent, fetch } from 'undici';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getLlmRouter } from '../server/llm/router';
-process.env.NODE_ENV = 'test';
-const { default: app } = await import('../server/index');
+import { getLlmRouter } from '../server/llm/router.js';
+// server/index.ts 只构建 app、不监听端口，因此可以安全地直接 import
+import app from '../server/index.js';
 test('chat接口模型失败返回本地资料，非法输入拒绝', async () => {
   const router = getLlmRouter();
   const original = router.chat;

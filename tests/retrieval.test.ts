@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadKnowledgeBase, retrieve } from '../server/knowledge/retriever';
-import { buildRetrievalContext } from '../server/knowledge/context';
-import { buildSystemPrompt } from '../server/knowledge/systemPrompt';
-import { localFallback } from '../server/knowledge/fallback';
+import { loadKnowledgeBase, retrieve } from '../server/knowledge/retriever.js';
+import { buildRetrievalContext } from '../server/knowledge/context.js';
+import { buildSystemPrompt } from '../server/knowledge/systemPrompt.js';
+import { localFallback } from '../server/knowledge/fallback.js';
 
 loadKnowledgeBase();
 test('补充型号后保留原症状，不使用助手推测检索', () => {

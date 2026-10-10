@@ -2,8 +2,8 @@
  * Gemini provider（通过 OpenAI 兼容接口访问）
  * - 需要网络可达 Google（有代理时通常可用）
  */
-import { createOpenAICompatibleProvider } from './openai-compatible';
-import type { Provider } from './types';
+import { createOpenAICompatibleProvider } from './openai-compatible.js';
+import type { Provider } from './types.js';
 
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';

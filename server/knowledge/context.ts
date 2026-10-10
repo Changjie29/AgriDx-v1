@@ -1,5 +1,5 @@
-import type { ChatMessage } from '../llm/types';
-import type { MachineScope } from './retriever';
+import type { ChatMessage } from '../llm/types.js';
+import type { MachineScope } from './retriever.js';
 
 /** 仅使用用户的话检索，避免助手推测反过来成为证据。 */
 export function buildRetrievalContext(history: ChatMessage[], selected: MachineScope) {
