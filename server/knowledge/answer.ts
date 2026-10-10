@@ -1,4 +1,4 @@
-import type { KnowledgeChunk } from './retriever';
+import type { KnowledgeChunk } from './retriever.js';
 
 export type EvidenceMode = 'references_available' | 'general_only' | 'clarify';
 export function evidenceMode(found: KnowledgeChunk[], conflict = false): EvidenceMode {

@@ -61,14 +61,23 @@ npm run dev
 - 后端：http://localhost:8787
 - 健康检查：http://localhost:8787/api/health
 
-### 4. 类型检查 / Lint / 构建
+### 4. 类型检查 / Lint / 测试 / 构建
 
 ```bash
+npm run verify      # 一键：版本一致性 + 类型检查 + 编译 + 测试 + Lint（CI 同款）
 npm run typecheck   # 前端 tsc
 npm run lint        # eslint
-npm test            # 检索、回答和本机接口测试
-npm run build       # 先 build:client 再 build:server
+npm test            # 全部测试（tsx 直跑 .ts）
+npm run test:domain # 编译后运行测试（不依赖 tsx/esbuild，受限环境用这个）
+npm run build       # 跨平台构建：dist/（前端）+ dist-server/（后端）
+npm start           # 启动构建产物：node dist-server/server/main.js
 ```
+
+构建产物说明：
+
+- `dist/` 前端静态站点，交给任意静态服务器/CDN。
+- `dist-server/` 后端 ESM 产物，Node 可直接运行；**必须在仓库根目录启动**，因为知识库与 `public/` 按 `process.cwd()` 解析。
+- `npm run build` 是跨平台 Node 脚本（`scripts/build.mjs`），不再依赖 `sh`。
 
 ## LLM 选择策略
 
@@ -114,6 +123,8 @@ server/knowledge/
 
 未来接入 PDF/Word/Excel/TXT 时，在 `server/knowledge/retriever.ts` 之上增加解析层即可，接口保持 `chunks: { text, source, heading }[]`。
 
+> 资料必须同时满足三个条件才会参与检索：文件位于 `server/knowledge/` 下（`00_说明/` 除外）、带有 `<!-- agridx-meta: {...} -->` 元信息、且元信息里 `enabled: true`。加载时的扫描/索引/跳过数量与告警可通过 `GET /api/knowledge` 查看；如果告警里出现"缺元信息"或"无 ## 章节"，说明该资料写了但没生效。
+
 ## 项目结构
 
 ```
@@ -157,8 +168,11 @@ SRT27/
 │       └── utils.ts                 # cn() 类名合并
 │
 ├── server/                           # 后端（Node.js + Express + tsx，ESM）
-│   ├── dev.ts                       # 开发入口（tsx watch 启动 index.ts）
-│   ├── index.ts                     # Express 路由：安全中间件/限流/health/chat/model
+│   ├── index.ts                     # 构建 Express 应用（不监听端口，便于测试）
+│   ├── main.ts                      # 生产入口：监听端口 + 优雅退出
+│   ├── dev.ts                       # 开发入口（tsx watch 启动）
+│   ├── version.ts                   # 版本唯一来源：运行时读取 package.json
+│   ├── logger.ts                    # 结构化日志：脱敏 + 级别 + 环形缓冲 + 落盘轮转
 │   ├── .env                         # 本地环境变量（永不提交 Git）
 │   │
 │   ├── llm/                         # LLM Provider 层（按代理自动选模型）
@@ -188,8 +202,13 @@ SRT27/
 │
 ├── scripts/
 │   ├── dev.mjs                      # 同时启动前端 Vite + 后端 tsx
-│   ├── build.sh                    # 先 build:client 再 build:server
-│   └── cloud-pull.sh               # 云电脑上执行的 git pull 脚本
+│   ├── build.mjs                    # 跨平台构建（取代 Unix-only build.sh）
+│   ├── verify.mjs                   # 一键验证（CI 与本机同款）
+│   ├── run-tests.mjs                # 编译后运行测试（不依赖 tsx/esbuild）
+│   ├── check-version.mjs            # 版本号一致性检查（CI 拦截漂移）
+│   ├── lib/build-utils.mjs          # CLI 解析共用工具
+│   ├── cloud-pull.sh               # 云电脑上执行的 git pull 脚本
+│   └── sync.sh                      # 本地提交并推送 main
 │
 ├── index.html                        # Vite HTML 入口
 ├── package.json                     # 依赖与 scripts（dev/typecheck/lint/build）
@@ -207,13 +226,94 @@ SRT27/
 - **`main`**：稳定主分支，开发改动通过 PR 合入；合并前须通过 CI。部署时记录对应的版本标签或完整 commit SHA。
 - 开发从最新 `main` 创建短期工作分支，例如 `codex/<任务名>`；提交 PR，使用 `Squash and merge` 合并。PR 标题采用 `feat(scope): ...`、`fix(scope): ...`、`ci(scope): ...` 等格式，最终合并标题与 PR 标题一致。
 
+## 版本号与更新日志（自动）
+
+版本号只有一个来源：`package.json` 的 `version`。`package-lock.json`、`.release-please-manifest.json`、`CHANGELOG.md` 和 `docs/version-history.md` 由发布流程同步；后端 `GET /api/version` 与前端页脚在运行时读取，因此发布新版本后不需要重新构建前端。各位置的维护者、版本推进规则和版本对照表统一见 [历史版本对照](docs/version-history.md#版本号是怎么自动更新的)。
+
+发布流程：
+
+1. 用 Conventional Commits 提交并推送到 `main`。
+2. Release Please 工作流自动开一个 `chore(main): release X.Y.Z` 的 PR，内含版本号递增、CHANGELOG 条目和版本对照同步。
+3. 合并该 PR 后，同一工作流自动打 tag 并创建 GitHub Release。
+
+注意：release-please 的默认策略是"有 `feat:` 升次版本，其余情况兜底升修订号"，所以纯维护提交（`ci:` / `chore:` / `docs:`）同样会开出版本 PR。版本号是否前进取决于你是否合并那个 PR；需要指定版本时在提交正文写一行 `Release-As: x.y.z`。
+
+CI 会运行 `node scripts/check-version.mjs`：`package.json`、`package-lock.json`、manifest、CHANGELOG、版本对照文档中任意一处不一致就会失败，避免"发了新版本但日志没更新"。
+
+## 日志
+
+所有日志经 `server/logger.ts` 统一输出，关键能力：
+
+- **脱敏**：`sk-`/`gsk_`/`AIza`/`xai-` 前缀密钥、`Bearer <token>`、`apiKey=...`、`"token": "..."`，以及对象里字段名敏感的值（`token`/`password`/`secret` 等）都会被替换为 `[redacted]`，落盘前后都不会出现明文密钥。
+- **请求 ID**：每个请求生成 `X-Request-Id`（可用同名字段透传），访问日志与错误响应体都会带上，便于把用户反馈对应到日志。
+- **级别**：`LOG_LEVEL=debug|info|warn|error`；4xx 记 `warn`、5xx 记 `error`。
+- **格式**：默认可读文本；`LOG_FORMAT=json` 输出单行 JSON，便于采集。
+- **落盘**：设置 `LOG_FILE=logs/app.jsonl` 后追加写入，超过 `LOG_MAX_BYTES`（默认 2 MiB）自动轮转为 `app.jsonl.1`。
+- **内存缓冲**：保留最近 200 条，`ENABLE_LOG_ENDPOINT=true` 时可通过 `GET /api/logs` 查看。
+
+```bash
+# 示例
+LOG_LEVEL=debug LOG_FORMAT=json LOG_FILE=logs/app.jsonl npm run dev
+```
+
 ## API
 
 ### `GET /api/health`
 
 ```json
-{ "ok": true, "timestamp": "...", "knowledge": { "chunks": 9 } }
+{
+  "ok": true,
+  "timestamp": "2026-10-10T01:00:00.000Z",
+  "version": "1.6.1",
+  "knowledge": { "fileCount": 2, "chunkCount": 26, "scannedFiles": 4, "skippedDisabled": 1 }
+}
 ```
+
+### `GET /api/version`
+
+版本号的唯一来源是 `package.json`，服务启动时读取，因此不会与 CHANGELOG/发布标签漂移。
+前端页脚就是从这个接口取版本，**发布新版本后无需重新构建前端**。
+
+```json
+{
+  "name": "agri-fault-diagnosis",
+  "version": "1.6.1",
+  "display": "v1.6.1",
+  "commit": "0941c660837496edcf1c12793b42d79f98cc55d3",
+  "commitShort": "0941c66",
+  "buildTime": "2026-10-09T12:30:00.000Z",
+  "environment": "production",
+  "source": "/app/package.json",
+  "startedAt": "2026-10-10T01:00:00.000Z",
+  "uptimeSeconds": 3600,
+  "knowledge": { "fileCount": 2, "chunkCount": 26 }
+}
+```
+
+`commit` / `buildTime` 来自构建时注入的环境变量（`GIT_COMMIT` / `GITHUB_SHA` / `BUILD_TIME`），
+本地运行取不到时如实返回 `null`，不会伪造提交号。
+
+### `GET /api/knowledge`
+
+知识库自检：哪些资料真正参与检索、哪些被排除、有哪些需要维护者处理的告警。
+排查"资料明明在仓库里却检索不到"时先看这个接口。
+
+```json
+{
+  "fileCount": 2,
+  "chunkCount": 26,
+  "scannedFiles": 4,
+  "skippedDisabled": 1,
+  "skippedNoMetadata": 0,
+  "indexedSources": ["02_农机类型/拖拉机检修与常见故障.md", "05_故障代码/约翰迪尔9R-诊断故障码.md"],
+  "warnings": ["1 份资料 enabled=false，未参与检索"]
+}
+```
+
+### `GET /api/logs`
+
+默认关闭。设置 `ENABLE_LOG_ENDPOINT=true` 后返回最近日志（已脱敏）。
+支持 `?limit=1..200` 与 `?level=debug|info|warn|error`。
 
 ### `POST /api/chat`
 

@@ -4,21 +4,29 @@
   "include-component-in-tag": false,
   "include-v-in-tag": true,
   "bootstrap-sha": "7ea9b9577a5ab4a94bc0e5c900ed4f2a4291209d",
+  "pull-request-title-pattern": "chore(main): release ${version}",
+  "pull-request-header": "本 PR 由 release-please 自动生成：递增版本号、更新 CHANGELOG 与版本对照。合并本 PR 后会自动打 tag 并发布 GitHub Release。",
   "packages": {
     ".": {
       "changelog-path": "CHANGELOG.md",
       "changelog-sections": [
-        { "type": "feat", "section": "新增功能", "hidden": false },
-        { "type": "fix", "section": "问题修复", "hidden": false },
-        { "type": "perf", "section": "性能优化", "hidden": false },
-        { "type": "refactor", "section": "代码重构", "hidden": false },
-        { "type": "docs", "section": "文档与知识资料", "hidden": false },
-        { "type": "build", "section": "构建与依赖", "hidden": false },
-        { "type": "ci", "section": "自动化流程", "hidden": false },
-        { "type": "test", "section": "验证检查", "hidden": false },
-        { "type": "chore", "section": "项目维护", "hidden": false },
-        { "type": "style", "section": "格式调整", "hidden": false },
-        { "type": "revert", "section": "回退变更", "hidden": false }
+        { "type": "feat", "section": "新增功能" },
+        { "type": "fix", "section": "问题修复" },
+        { "type": "perf", "section": "性能优化" },
+        { "type": "refactor", "section": "代码重构" },
+        { "type": "docs", "section": "文档与知识资料" },
+        { "type": "build", "section": "构建与依赖" },
+        { "type": "ci", "section": "自动化流程" },
+        { "type": "test", "section": "验证检查" },
+        { "type": "chore", "section": "项目维护" },
+        { "type": "style", "section": "格式调整" },
+        { "type": "revert", "section": "回退变更" }
+      ],
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "docs/version-history.md"
+        }
       ]
     }
   }

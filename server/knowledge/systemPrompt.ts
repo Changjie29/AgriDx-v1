@@ -9,9 +9,9 @@
  * - 结构化输出模板
  * - 安全提醒
  */
-import { evidenceMode, type EvidenceMode } from './answer';
-import type { ChatMessage } from '../llm/types';
-import { retrieve, formatForPrompt, type KnowledgeChunk } from './retriever';
+import { evidenceMode, type EvidenceMode } from './answer.js';
+import type { ChatMessage } from '../llm/types.js';
+import { retrieve, formatForPrompt, type KnowledgeChunk } from './retriever.js';
 
 export interface BuildSystemPromptOptions {
   /** 用户最近一轮问题（用于检索） */

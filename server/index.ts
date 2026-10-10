@@ -1,20 +1,26 @@
 /**
- * SRT27 HTTP 服务入口
+ * SRT27 HTTP 服务构建
  *
  * 职责：
- * - Express 中间件（CORS、安全头、JSON 解析、限流）
- * - /api/health
+ * - Express 中间件（请求 ID、结构化日志、CORS、安全头、JSON 解析、限流）
+ * - /api/health、/api/version、/api/knowledge、/api/logs
  * - /api/chat：输入校验 → RAG → LLM Router → 统一错误响应
  * - /api/model/tractor：本地 GLB 文件
  *
  * 注意：
  * - API Key 仅从环境变量读取，绝不打印、绝不返回前端。
  * - 用户侧错误信息永远是友好的中文/英文提示，不暴露 ECONNRESET/502 等技术细节。
+ * - 所有日志经 server/logger.ts 输出，落盘与回显前统一脱敏。
+ * - 本模块**不监听端口**：监听由 server/index.ts（生产入口）或测试显式完成。
+ *   这样测试 import 本模块不会被强行绑定到 8787，也避免依赖 NODE_ENV 时序。
  */
-import express, { type Request, type Response } from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { createLogger, recentLogs, loggerStatus, type LogLevel } from './logger.js';
+import { getAppVersion } from './version.js';
 
 // 1) 必须先加载 server/.env，再读取任何代理/Key 环境变量。
 //    这样即使 HTTPS_PROXY 等代理配置写在 .env 里，也能被后续 detectProxy() 正确识别。
@@ -23,24 +29,28 @@ dotenv.config({ path: path.resolve(process.cwd(), 'server/.env') });
 // 2) Node fetch 默认不走系统代理；若配置了代理，全局启用（undici）。
 //    此时 process.env.HTTPS_PROXY 等已包含 .env 中的值。
 import { setGlobalDispatcher, ProxyAgent } from 'undici';
+
+const log = createLogger('server');
+
 const proxyUrl =
   process.env.HTTPS_PROXY ||
   process.env.https_proxy ||
   process.env.HTTP_PROXY ||
   process.env.http_proxy;
 if (proxyUrl) {
+  // 只报告"是否启用"，不打印代理地址（可能含账号密码）
   setGlobalDispatcher(new ProxyAgent(proxyUrl));
-  console.log('[server] proxy enabled (redacted)');
+  log.info('出站代理已启用');
 }
 
 // ---- 知识库 & LLM ----
-import { loadKnowledgeBase, stats as kbStats } from './knowledge/retriever';
-import { buildRetrievalContext } from './knowledge/context';
-import { renderDiagnosis } from './knowledge/answer';
-import { localFallback } from './knowledge/fallback';
-import { buildSystemPrompt } from './knowledge/systemPrompt';
-import { getLlmRouter } from './llm/router';
-import { ProviderError, type ChatMessage } from './llm/types';
+import { loadKnowledgeBase, stats as kbStats, indexedSources } from './knowledge/retriever.js';
+import { buildRetrievalContext } from './knowledge/context.js';
+import { renderDiagnosis } from './knowledge/answer.js';
+import { localFallback } from './knowledge/fallback.js';
+import { buildSystemPrompt } from './knowledge/systemPrompt.js';
+import { getLlmRouter } from './llm/router.js';
+import { ProviderError, type ChatMessage } from './llm/types.js';
 
 loadKnowledgeBase();
 const llm = getLlmRouter();
@@ -48,9 +58,43 @@ const llm = getLlmRouter();
 const app = express();
 const PORT = Number(process.env.PORT) || 8787;
 
+// 版本与进程启动时间：/api/version 与 /api/health 都从这里取，保证同一进程内自洽
+const VERSION = getAppVersion();
+const BOOTED_AT = new Date().toISOString();
+
 // ---- 基础安全 ----
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+
+// ---- 请求 ID + 访问日志 ----
+// 每个请求一个 ID：错误响应体与响应头都会带上，便于把用户反馈对应到日志。
+// 用 `& { requestId?: string }` 扩展而不是全局 declare module，避免污染 express 的类型。
+type RequestWithId = Request & { requestId?: string };
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const withId = req as RequestWithId;
+  const incoming = req.get('x-request-id');
+  const requestId = incoming && /^[A-Za-z0-9_-]{8,64}$/.test(incoming) ? incoming : randomUUID();
+  withId.requestId = requestId;
+  res.setHeader('X-Request-Id', requestId);
+
+  const startedAt = process.hrtime.bigint();
+  res.on('finish', () => {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+    const line = {
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      durationMs: Math.round(durationMs * 10) / 10,
+    };
+    // 4xx/5xx 归为 warn/error，便于按级别筛选异常流量
+    if (res.statusCode >= 500) log.error('请求处理失败', { requestId, detail: line });
+    else if (res.statusCode >= 400) log.warn('请求被拒绝', { requestId, detail: line });
+    else log.info('请求完成', { requestId, detail: line });
+  });
+
+  next();
+});
 
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -99,8 +143,41 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
     ok: true,
     timestamp: new Date().toISOString(),
+    version: VERSION.version,
     knowledge: kbStats(),
   });
+});
+
+// ---- 版本信息 ----
+// 版本号唯一来源是 package.json，运行时读取，因此不会与更新日志/发布标签漂移。
+app.get('/api/version', (_req: Request, res: Response) => {
+  res.json({
+    ...VERSION,
+    startedAt: BOOTED_AT,
+    uptimeSeconds: Math.round(process.uptime()),
+    knowledge: kbStats(),
+  });
+});
+
+// ---- 知识库自检：哪份资料生效、哪份被排除 ----
+// 排查"资料明明在仓库里却没有被引用"这类问题时，直接看这个接口即可。
+app.get('/api/knowledge', (_req: Request, res: Response) => {
+  res.json({ ...kbStats(), indexedSources: indexedSources() });
+});
+
+// ---- 近期日志（无日志平台时的排查手段）----
+app.get('/api/logs', (req: Request, res: Response) => {
+  // 仅在本机/内网排查时开放；公网部署请用 ALLOWED_ORIGINS + 反向代理限制
+  if (process.env.ENABLE_LOG_ENDPOINT !== 'true') {
+    res.status(404).json({ error: '未开启日志接口', code: 'logs_disabled' });
+    return;
+  }
+  const rawLimit = Number(req.query.limit);
+  const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.trunc(rawLimit), 1), 200) : 50;
+  const level = typeof req.query.level === 'string' && ['debug', 'info', 'warn', 'error'].includes(req.query.level)
+    ? (req.query.level as LogLevel)
+    : undefined;
+  res.json({ status: loggerStatus(), entries: recentLogs(limit, level) });
 });
 
 // ---- /api/chat ----
@@ -172,10 +249,18 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       evidenceMode: mode,
     });
   } catch (err) {
+    // 两个 provider 都不可用或输出不合格：降级为本地资料检索，日志带 requestId 便于回查
+    const requestId = (req as RequestWithId).requestId;
     if (err instanceof ProviderError) {
-      console.warn(`[chat] provider error: ${err.provider}/${err.kind}`, err.detail);
+      log.warn('模型调用失败，降级为本地资料', {
+        requestId,
+        detail: { provider: err.provider, kind: err.kind },
+      });
     } else {
-      console.error('[chat] unexpected error:', err instanceof Error ? err.name : 'unknown');
+      log.error('模型输出不可用，降级为本地资料', {
+        requestId,
+        detail: { name: err instanceof Error ? err.name : 'unknown' },
+      });
     }
     res.json({
       choices: [{ message: { role: 'assistant', content: localFallback(retrieved, modelResponded ? 'invalid_output' : 'unavailable') } }],
@@ -194,22 +279,11 @@ app.get('/api/model/tractor', (_req: Request, res: Response) => {
 });
 
 // ---- 全局错误兜底 ----
-app.use((err: Error, _req: Request, res: Response, _next: express.NextFunction) => {
-  console.error('[server] unhandled:', err.message);
-  res.status(500).json({ error: '服务器内部错误' });
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  const requestId = (req as RequestWithId).requestId;
+  log.error('未处理的服务端异常', { requestId, detail: { name: err.name, message: err.message } });
+  res.status(500).json({ error: '服务器内部错误', code: 'internal_error', requestId });
 });
 
-if (process.env.NODE_ENV !== 'test') {
-  const server = app.listen(PORT, () => {
-    console.log(`[server] running on http://localhost:${PORT}`);
-  });
-  const shutdown = (signal: string) => {
-    console.log(`[server] received ${signal}, shutting down...`);
-    server.close(() => process.exit(0));
-    setTimeout(() => process.exit(1), 5000).unref();
-  };
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-}
-
+export { VERSION, BOOTED_AT };
 export default app;

@@ -8,3 +8,14 @@ dist-server
 .env
 server/.env
 *.tsbuildinfo
+
+# 运行时日志（LOG_FILE 默认写到这里）
+logs/
+*.log
+
+# 本地临时产物
+tmp_testbuild
+tmp_esbuild_probe
+
+# 构建工具缓存（esbuild 临时目录等，见 scripts/build.mjs）
+.cache/

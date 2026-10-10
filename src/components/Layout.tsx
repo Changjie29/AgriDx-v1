@@ -4,6 +4,7 @@ import { Menu, X, MessageSquare, Sun, Moon, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useLang, setLang } from '@/hooks/useLang';
+import { useVersion } from '@/hooks/useVersion';
 
 const NAV_ZH = [
   { label: '首页', path: '/' },
@@ -29,6 +30,7 @@ export function Layout() {
   const lang = useLang();
   const location = useLocation();
   const navigate = useNavigate();
+  const { version, source: versionSource } = useVersion();
 
   useEffect(() => {
     document.documentElement.classList.remove('theme-light', 'theme-dark');
@@ -186,6 +188,45 @@ export function Layout() {
       <main className="flex-1 w-full">
         <Outlet />
       </main>
+
+      {/* 页脚：版本号来自后端运行时接口，发布后无需重新构建前端即可刷新 */}
+      <footer className="border-t border-border/60 bg-background/60">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-1 px-4 py-4 text-xs text-muted-foreground md:flex-row md:px-6 lg:px-8">
+          <span>© 2026 司农智机 SRT27 · 南京农业大学</span>
+          <span className="flex items-center gap-2">
+            {version && (
+              <>
+                <span
+                  title={
+                    versionSource === 'live'
+                      ? `运行时版本${version.commitShort ? ` · commit ${version.commitShort}` : ''}${version.startedAt ? ` · 启动于 ${version.startedAt}` : ''}`
+                      : '构建期版本（后端接口不可用）'
+                  }
+                  className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-accent/50 px-2 py-0.5 font-mono"
+                >
+                  {version.display}
+                  {versionSource === 'build' && (
+                    <span className="text-muted-foreground/70">
+                      {lang === 'zh' ? '构建版' : 'build'}
+                    </span>
+                  )}
+                </span>
+                {version.commitShort && (
+                  <span className="hidden font-mono sm:inline">{version.commitShort}</span>
+                )}
+              </>
+            )}
+            <a
+              href="https://github.com/Changjie29/AgriDx-v1/blob/main/CHANGELOG.md"
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-dotted underline-offset-2 transition-colors hover:text-primary"
+            >
+              {lang === 'zh' ? '更新日志' : 'Changelog'}
+            </a>
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }

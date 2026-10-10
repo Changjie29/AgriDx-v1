@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evidenceMode, renderDiagnosis } from '../server/knowledge/answer';
-import { buildSystemPrompt } from '../server/knowledge/systemPrompt';
+import { evidenceMode, renderDiagnosis } from '../server/knowledge/answer.js';
+import { buildSystemPrompt } from '../server/knowledge/systemPrompt.js';
 const found = [{ source: 'manual.md', heading: '冷却系统', text: '检查渗漏' }];
 const answer = { summary: '冷却液泄漏', evidence: [{ claim: '资料建议检查渗漏', sourceIds: [1] }], hypotheses: ['可能存在连接处渗漏，需核实'], questions: ['具体型号是什么？'], checks: ['观察是否存在可见渗漏'] };
 test('检索命中仅标记候选资料，不宣称充分或确诊', () => {

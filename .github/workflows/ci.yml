@@ -1,5 +1,8 @@
 name: CI
 
+# 所有检查共用本地的 `npm run verify`，避免"本地过了 CI 挂"。
+# verify 会依次执行：版本一致性 → 前端/后端类型检查 → 编译并运行测试 → ESLint。
+
 on:
   pull_request:
     branches: [main]
@@ -28,7 +31,9 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Check pull request title
+
+      # PR 标题必须是 Conventional Commits，release-please 才能正确归类到更新日志
+      - name: 校验 PR 标题（Conventional Commits）
         if: github.event_name == 'pull_request'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -37,12 +42,24 @@ jobs:
           const title = process.env.PR_TITLE ?? '';
           const pattern = /^(feat|fix|perf|refactor|docs|build|ci|test|chore|style|revert)(\([^)]+\))?!?: .+$/u;
           if (!pattern.test(title)) {
-            console.error('PR 标题格式示例：feat(knowledge): 增加拖拉机知识条目');
+            console.error('PR 标题格式不合规，示例：feat(knowledge): 增加拖拉机知识条目');
+            console.error(`当前标题：${title}`);
             process.exit(1);
           }
+          console.log(`PR 标题合规：${title}`);
           NODE
+
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+
+      # 版本号一致性：package.json / package-lock.json / manifest / CHANGELOG / 版本对照
+      - name: 版本一致性
+        run: node scripts/check-version.mjs
+
+      - name: 类型检查、编译、测试、Lint
+        run: npm run verify -- --no-lint
+        env:
+          GIT_COMMIT: ${{ github.sha }}
+          BUILD_TIME: ${{ github.event.repository.updated_at }}
+
+      - name: ESLint
+        run: npm run lint
