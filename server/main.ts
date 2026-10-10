@@ -1,8 +1,8 @@
 /**
  * 生产启动入口。
  *
- * 构建产物：dist-server/server/main.js
- * 启动方式：node dist-server/server/main.js
+ * 构建产物：dist-server/main.js
+ * 启动方式：node dist-server/main.js
  *
  * 必须在仓库根目录启动：知识库（server/knowledge）与 public/ 都按 process.cwd() 解析。
  */
