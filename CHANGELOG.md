@@ -8,6 +8,13 @@
 
 不要手工新增正式版本段落。release-please 根据 manifest 记录的上一版本生成新日志，手工插入可能造成重复版本。
 
+## [1.6.3](https://github.com/Changjie29/AgriDx-v1/compare/v1.6.2...v1.6.3) (2026-10-10)
+
+
+### 自动化流程
+
+* **release:** 发布 PR 通过检查后自动合并 ([5de6866](https://github.com/Changjie29/AgriDx-v1/commit/5de6866dcc7ba6eca6982d65a7625d9dbfd507f4))
+
 ## [1.6.2](https://github.com/Changjie29/AgriDx-v1/compare/v1.6.1...v1.6.2) (2026-10-10)
 
 
