@@ -1,7 +1,7 @@
 name: CI
 
 # 所有检查共用本地的 `npm run verify`，避免"本地过了 CI 挂"。
-# verify 会依次执行：版本一致性 → 前端/后端类型检查 → 编译并运行测试 → ESLint。
+# verify 会执行版本一致性、类型检查、编译测试、前后端构建与 ESLint。
 
 on:
   pull_request:
@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version-file: '.node-version'
           cache: npm
 
       # PR 标题必须是 Conventional Commits，release-please 才能正确归类到更新日志
@@ -51,15 +51,9 @@ jobs:
 
       - run: npm ci
 
-      # 版本号一致性：package.json / package-lock.json / manifest / CHANGELOG / 版本对照
-      - name: 版本一致性
-        run: node scripts/check-version.mjs
-
-      - name: 类型检查、编译、测试、Lint
-        run: npm run verify -- --no-lint
+      - name: 验证版本、类型、测试、构建和 Lint
+        run: npm run verify
         env:
           GIT_COMMIT: ${{ github.sha }}
           BUILD_TIME: ${{ github.event.repository.updated_at }}
 
-      - name: ESLint
-        run: npm run lint

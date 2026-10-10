@@ -11,7 +11,7 @@
  * - API Key 仅从环境变量读取，绝不打印、绝不返回前端。
  * - 用户侧错误信息永远是友好的中文/英文提示，不暴露 ECONNRESET/502 等技术细节。
  * - 所有日志经 server/logger.ts 输出，落盘与回显前统一脱敏。
- * - 本模块**不监听端口**：监听由 server/index.ts（生产入口）或测试显式完成。
+ * - 本模块**不监听端口**：监听由 server/main.ts（生产入口）、dev.ts 或测试显式完成。
  *   这样测试 import 本模块不会被强行绑定到 8787，也避免依赖 NODE_ENV 时序。
  */
 import express, { type NextFunction, type Request, type Response } from 'express';

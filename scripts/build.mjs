@@ -13,7 +13,7 @@
  * 说明：
  * - 通过包内 JS 入口调用 tsc/vite，不依赖 shell、不依赖 PATH，
  *   Windows / macOS / Linux / CI 行为一致。
- * - 构建时把版本号与 commit 写入环境变量，供 server/version.ts 与前端读取。
+ * - 构建进程环境提供前端版本兜底；后端提交信息需在服务进程环境中提供。
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -82,7 +82,7 @@ if (buildServer) {
 
 const outputs = [];
 if (buildClient) outputs.push('dist/        （前端站点）');
-if (buildServer) outputs.push('dist-server/ （后端 ESM，node dist-server/server/main.js）');
+if (buildServer) outputs.push('dist-server/ （后端 ESM，node dist-server/main.js）');
 
 console.log('\n[build] 构建完成');
 for (const line of outputs) console.log(`  - ${line}`);

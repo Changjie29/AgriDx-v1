@@ -5,7 +5,9 @@
     "outDir": "node_modules/.testbuild",
     "noEmit": false,
     "declaration": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "allowJs": true,
+    "checkJs": false
   },
-  "include": ["server/**/*.ts", "tests/**/*.ts"]
+  "include": ["server/**/*.ts", "tests/**/*.ts", "scripts/lib/git.mjs", "scripts/lib/release-state.mjs", "scripts/sync.mjs", "scripts/checkout-release.mjs"]
 }

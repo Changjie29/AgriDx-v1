@@ -4,9 +4,9 @@
 
 旧标签及版本命名见 [历史版本对照](docs/version-history.md)。本文件不将旧标签名称重新解释成三段版本。
 
-书写约定：本文件由 release-please 依据 Conventional Commits 追加与维护，章节名与版本推进规则见[历史版本对照 · 版本号是怎么自动更新的](docs/version-history.md#版本号是怎么自动更新的)。请勿手工改写已发布版本的段落——进入本文件即视为已发布；`1.6.0` 是人工登记的基线。
+新版本条目由 release-please 根据 Conventional Commits 在发布 PR 中生成；维护者检查条目与实际改动后决定何时发布，正式状态以 tag 和 GitHub Release 为准。请保留已发布段落，后续修复进入新版本；`1.6.0` 是人工登记的基线。章节和版本推进规则见 [历史版本对照](docs/version-history.md#版本号是怎么自动更新的)，操作见 [发布流程](docs/releasing.md)。
 
-**注意：不要手工编辑本文件。** 下次发布时 release-please 会基于 `.release-please-manifest.json` 记录的上一个版本，在文件顶部插入新段落；手工插入的内容可能与自动生成结果冲突，导致同一个版本出现两段日志。
+不要手工新增正式版本段落。release-please 根据 manifest 记录的上一版本生成新日志，手工插入可能造成重复版本。
 
 ## [1.6.1](https://github.com/Changjie29/AgriDx-v1/compare/v1.6.0...v1.6.1) (2026-10-09)
 

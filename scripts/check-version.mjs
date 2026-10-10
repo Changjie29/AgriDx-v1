@@ -5,19 +5,21 @@
  * 从口头约定变成 CI 会拦截的检查项。
  *
  * 检查内容：
- *   1. package.json 的 version 是合法 semver
+ *   1. package.json 的 version 是规范稳定 X.Y.Z
  *   2. package-lock.json 顶层 version 与 package.json 一致
  *      （release-please 的 node 策略会同步它；不一致说明手工改漏了）
  *   3. .release-please-manifest.json 的 "." 与 package.json 一致
- *   4. CHANGELOG.md 存在且包含当前版本的条目
+ *   4. CHANGELOG.md 的最新正式条目对应当前版本，无重复版本
  *   5. docs/version-history.md 存在且带有 release-please 的版本同步注解
  *   6. 后端运行时读取到的版本与 package.json 一致（防止版本来源被改坏）
+ *   7. release-please 根包使用 Node 策略和根 CHANGELOG
  *
  * 用法：node scripts/check-version.mjs
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateReleaseState } from './lib/release-state.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const errors = [];
@@ -52,62 +54,25 @@ if (!pkg) {
   console.error(errors.join('\n'));
   process.exit(1);
 }
-const version = String(pkg.version ?? '').trim();
-const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-if (!SEMVER.test(version)) {
-  errors.push(`package.json version "${version}" 不是合法 semver（应形如 1.6.1）`);
-} else {
-  notes.push(`package.json version = ${version}`);
-}
-
+const version = pkg.version;
 const normalize = (v) => String(v ?? '').trim().replace(/^v/i, '');
-
-// 2) package-lock.json
+// 2~4) 共用可测试的校验逻辑：版本必须完全一致，最新日志必须对应当前版本。
 const lock = readJson('package-lock.json');
-if (lock) {
-  const lockVersion = normalize(lock.version);
-  const lockRootVersion = normalize(lock.packages?.['']?.version);
-  if (lockVersion !== normalize(version)) {
-    errors.push(`package-lock.json 顶层 version (${lock.version}) 与 package.json (${version}) 不一致`);
-  }
-  if (lockRootVersion && lockRootVersion !== normalize(version)) {
-    errors.push(`package-lock.json packages[""].version (${lock.packages[''].version}) 与 package.json (${version}) 不一致`);
-  }
-  if (lockVersion === normalize(version) && lockRootVersion === normalize(version)) {
-    notes.push('package-lock.json 版本一致');
-  }
-}
-
-// 3) release-please manifest
 const manifest = readJson('.release-please-manifest.json');
-if (manifest) {
-  const manifestVersion = normalize(manifest['.']);
-  if (manifestVersion !== normalize(version)) {
-    errors.push(`.release-please-manifest.json 的 "." (${manifest['.']}) 与 package.json (${version}) 不一致；` +
-      '该文件由 release-please 维护，手工改动容易导致重复发版或漏发版');
-  } else {
-    notes.push('.release-please-manifest.json 版本一致');
-  }
-}
-
-// 4) CHANGELOG
+const releaseConfig = readJson('release-please-config.json');
 const changelog = readText('CHANGELOG.md');
-if (changelog) {
-  const escaped = normalize(version).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // 匹配 "## [1.6.1]" 或 "## 1.6.1"
-  const heading = new RegExp(`^##\\s+\\[?${escaped}\\]?`, 'm');
-  if (heading.test(changelog)) {
-    notes.push(`CHANGELOG.md 含 ${version} 条目`);
-  } else {
-    errors.push(`CHANGELOG.md 未找到 ${version} 的条目（应形如 "## [${version}] (日期)"）`);
-  }
+const stateErrors = validateReleaseState({ packageJson: pkg, lockfile: lock, manifest, releaseConfig, changelog });
+errors.push(...stateErrors);
+if (!stateErrors.length) {
+  notes.push(`package.json version = ${version}`);
+  notes.push('package-lock.json、manifest 与最新 CHANGELOG 版本一致，发布配置有效');
 }
 
 // 5) 版本对照文档 + release-please 同步注解
 // 注意：release-please 的 generic updater 按"整行"识别块标记，
 // start/end 必须各自独占一行，否则该块不会生效（发布时会静默漏更新）。
 const history = readText('docs/version-history.md');
-if (history) {
+if (history !== null) {
   const lines = history.split(/\r?\n/);
   const startIndex = lines.findIndex((line) => line.includes('x-release-please-start-version'));
   const endIndex = lines.findIndex((line) => line.includes('x-release-please-end'));

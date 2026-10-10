@@ -6,7 +6,7 @@
  * - 启动时扫描 server/knowledge/ 下所有 .md 文件，按二级标题切块。
  * - 查询时用关键词重叠打分（中文 bigram + 英文 token），取 top-K 片段。
  * - 知识库很小，全量塞 prompt 也可；这里做"按需选片"，为未来扩充留接口。
- * - 未来接入 PDF/Word 时，只需在 loadAll() 里加新解析器，返回 {path, heading, text}。
+ * - 未来接入 PDF/Word 时，在 loadKnowledgeBase() 增加解析层，返回 {source, heading, text}。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,7 +17,7 @@ export interface KnowledgeMetadata { machineType: string; brand?: string; models
 
 export interface KnowledgeChunk {
   metadata?: KnowledgeMetadata;
-  /** 文件相对 server/knowledge 的路径 */
+  /** 文件相对 server/knowledge 的路径，统一使用 / 分隔 */
   source: string;
   /** 该块所属章节标题（## 级） */
   heading: string;
@@ -104,7 +104,7 @@ function splitByHeading(relPath: string, content: string): KnowledgeChunk[] {
   const flush = () => {
     const text = buf.join('\n').trim();
     if (text.length > 0) {
-      out.push({ source: relPath, heading: currentHeading, text });
+      out.push({ source: relPath.replace(/\\/g, '/'), heading: currentHeading, text });
     }
     buf = [];
   };

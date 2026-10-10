@@ -6,7 +6,7 @@
  *   2. 前端类型检查（tsc -b tsconfig.app.json）
  *   3. 后端类型检查（tsc -p tsconfig.server.json）
  *   4. 编译并运行测试（scripts/run-tests.mjs）
- *   5. 构建后端部署产物 dist-server/（供 npm start 使用）
+ *   5. 构建前端 dist/ 与后端 dist-server/（供 npm start 使用）
  *   6. 复检版本一致性，这次包含"运行时读取到的版本"（需要上一步产物）
  *   7. ESLint（存在 eslint 时执行）
  *
@@ -59,8 +59,8 @@ if (runTest) {
   step('编译并运行测试', [process.execPath, []], [path.join(rootDir, 'scripts', 'run-tests.mjs')]);
 }
 
-// 5) 构建后端部署产物（run-tests 只产出 node_modules/.testbuild，不产出 dist-server）
-step('构建后端产物', cli.tsc(), ['-p', 'tsconfig.server.json']);
+// 5) 使用统一构建入口，CI 也验证 Vite 打包及 Windows 临时目录处理。
+step('构建前后端产物', [process.execPath, []], [path.join(rootDir, 'scripts', 'build.mjs')]);
 
 // 6) 复检：这次会真的 import 产物里的 version.js，验证运行时版本与 package.json 一致
 step('版本一致性（含运行时）', [process.execPath, []], [path.join(rootDir, 'scripts', 'check-version.mjs')]);
@@ -68,7 +68,7 @@ step('版本一致性（含运行时）', [process.execPath, []], [path.join(roo
 // 7) Lint
 if (runLint) {
   try {
-    step('ESLint', cli.eslint(), ['.', '--cache', '--cache-location', 'node_modules/.eslintcache']);
+    step('ESLint', cli.eslint(), ['.', '--cache', '--cache-location', 'node_modules/.eslintcache', '--report-unused-disable-directives']);
   } catch {
     console.log('\n\u25b6 跳过 ESLint（未安装）');
   }

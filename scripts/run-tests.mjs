@@ -25,6 +25,17 @@ function run(label, command, args) {
   }
 }
 
+// 清理固定测试产物目录，避免删除或重命名测试后仍执行旧文件。
+// 递归删除前核对真实路径，拒绝符号链接或 junction 指向工作区外。
+if (fs.existsSync(outDir)) {
+  const resolvedRoot = fs.realpathSync(rootDir);
+  const resolvedOutput = fs.realpathSync(outDir);
+  if (resolvedOutput !== path.join(resolvedRoot, 'node_modules', '.testbuild')) {
+    throw new Error(`测试输出目录不在预期位置：${resolvedOutput}`);
+  }
+  fs.rmSync(resolvedOutput, { recursive: true, force: true });
+}
+
 // 1) 编译（同时充当类型检查）
 const [tscCommand, tscPrefix] = cli.tsc();
 run('编译', tscCommand, [...tscPrefix, '-p', 'tsconfig.testbuild.json']);

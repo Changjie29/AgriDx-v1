@@ -21,6 +21,26 @@ test('未知型号与其他品牌不能检索9R专用故障码', () => {
 test('明确约翰迪尔9R才能使用对应故障码', () => {
   assert.ok(retrieve('ECU 000110.00 冷却液温度高', 6, { brand: '约翰迪尔', model: '9R' }).some(c => c.metadata?.models?.includes('9R')));
 });
+test('整理后的两类资料保持可检索的相对来源路径和原文网址', () => {
+  const general = retrieve('散热器冷却液', 6, { machineType: '拖拉机' });
+  const generalSource = '02_农机类型/拖拉机检修与常见故障.md';
+  const generalChunk = general.find(c => c.source === generalSource);
+  assert.ok(generalChunk, '通用检修资料应从分类目录加载');
+  assert.equal(generalChunk.metadata?.sourceUrl, 'http://www.amic.agri.cn/secondLevelPage/info/30/204267');
+  assert.ok(localFallback(general).includes(generalSource));
+
+  const specialized = retrieve('ECU 000110.00 冷却液温度高', 6, { machineType: '拖拉机', brand: '约翰迪尔', model: '9R' });
+  const specializedSource = '05_故障代码/约翰迪尔9R-诊断故障码.md';
+  const specializedChunk = specialized.find(c => c.source === specializedSource);
+  assert.ok(specializedChunk, '9R 故障码资料应从故障代码目录加载');
+  assert.equal(specializedChunk.metadata?.sourceUrl, 'https://www.camda.cn/message/2017/31971.html');
+  assert.deepEqual(specializedChunk.metadata?.models, ['9R']);
+
+  for (const chunk of [...general, ...specialized]) {
+    assert.ok(!chunk.source.includes('\\'), '来源路径在各平台统一使用 /');
+    assert.ok(!chunk.source.includes('server/knowledge/'), '来源路径相对知识库根目录');
+  }
+});
 test('选择器与用户文本冲突时排除专用资料', () => {
   const c = buildRetrievalContext([{ role: 'user', content: '雷沃冷却液高温，型号是8R' }], { brand: '约翰迪尔', model: '9R' });
   assert.equal(c.conflict, true);
